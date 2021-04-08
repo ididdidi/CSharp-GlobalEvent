@@ -155,14 +155,14 @@ Another innovation is that we do not check the delegate for 'null' before making
 ### Signal preprocessing
 If you inherit from a class derived from `Signal<T>` (for example, from `Error`), then the received signal type can no longer be subscribed, but in this new class you can perform some template pre-processing of the data sent in it, for example, add a prefix:
 ```csharp
-class Warning : Error
+class FatalError : Error
 {
-    private Warning(string text) : base("Warning: " + text) { }
+    private FatalError(string text) : base("Fatal error: " + text) { }
     public new static void Send(string text)
     {
         try
         {
-            hendlers.Invoke(new Warning(text));
+            hendlers.Invoke(new FatalError(text));
         }
         catch (System.NullReferenceException e)
         {
@@ -171,12 +171,15 @@ class Warning : Error
     }
 }
 ```
-When sending this signal, all `Error` subscribers will receive messages already with the _Warning_ prefix.
+When sending this signal, all `Error` subscribers will receive messages already with the _Fatal error_ prefix.
 
 ## Instead of a conclusion
 I understand that this method may seem unsafe to many people because of a possible memory leak, but even with a kitchen knife, which most of us use to cut bread for sandwiches, you can cut yourself)
 
 To protect yourself when using signals, I recommend that you subscribe to them only objects that are active before the program exits, or whose lifetime can be accurately determined, and at the end of it unsubscribe from the signal. In the case of objects in **Unity3d**, you can(and should) unsubscribe from the signal in the `onDestroy()` method called when the object is removed from the scene. In the case of standard C#, you should not try to unsubscribe in the destructor or in the `Finalize()` method since it is called by the mustor collector only after removing all references to the object, and as you understand, the reference to the object's method will be stored in a static variable until the program ends.
 
-In any case, it is up to you to use this method or not. Thanks for your attention :)
+In any case, it is up to you to use this method or not. I have created a separate repository with [examples](https://github.com/mofrison/examples-global-signals) so that you can test them.
+You can also use global signals in your project by adding [this repository](https://github.com/mofrison/global-signals) as a submodule.
+
+Thanks for your attention :)
 
