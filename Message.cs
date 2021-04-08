@@ -1,4 +1,4 @@
-﻿namespace ru.mofrison.global_signals
+﻿namespace ru.mofrison.GlobalSignals
 {
     class Message : Signal<Message>
     {

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace ru.mofrison.global_signals
+namespace ru.mofrison.GlobalSignals
 {
     /// <summary>
     /// A base class that is used to implement the mechanism for subscribing to signals.

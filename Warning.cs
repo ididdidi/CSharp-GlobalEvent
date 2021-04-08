@@ -1,4 +1,4 @@
-﻿namespace ru.mofrison.global_signals
+﻿namespace ru.mofrison.GlobalSignals
 {
     /// <summary>
     /// A more complex example of signal implementation. Adds only unique methods as delegates.
@@ -31,7 +31,7 @@
         {
             try
             {
-                hendlers.Invoke(new Error(text));
+                hendlers.Invoke(new Warning(text));
             }
             catch (System.NullReferenceException e)
             {
