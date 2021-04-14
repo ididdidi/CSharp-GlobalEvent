@@ -1,6 +1,6 @@
 ﻿namespace ru.mofrison.GlobalSignals
 {
-    class Message : Signal<Message>
+    public class Message : Signal<Message>
     {
         private string text;
         public string Text { get => text; }
