@@ -181,7 +181,7 @@ To protect yourself when using signals, I recommend that you subscribe to them o
 I have created a separate repository with [examples](https://github.com/mofrison/examples-global-signals) so that you can test them.
 You can also use global signals in your project by adding [this repository](https://github.com/mofrison/GlobalSignals) as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules):
 
-	git submodule add https://github.com/mofrison/global-signals
+	git submodule add https://github.com/mofrison/GlobalSignals
 
 In any case, it is up to you to use this method or not. Thanks for your attention :)
 
