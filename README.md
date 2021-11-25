@@ -121,7 +121,6 @@ To successfully overcome these problems, you can implement the signal as follows
 public class Error : Signal<Error>
 {
     private string text;
-    private static HashSet<int> hashs = new HashSet<int>();
     
     public string Text { get => text; }
 
@@ -152,7 +151,7 @@ In this example, when subscribing to a signal, the `GetUniqueHendlers(Hendler he
 
 Another innovation is that we do not check the delegate for 'null' before making a call. Instead, we catch the `NullReferenceException` error and throw `Signal<T>.Exception` if it occurs of the class, which we can later process according to the application logic.
 
-### Signal preprocessing
+### Signal and inheritance
 If you inherit from a class derived from `Signal<T>` (for example, from `Error`), then the received signal type can no longer be subscribed, but in this new class you can perform some template pre-processing of the data sent in it, for example, add a prefix:
 ```csharp
 class FatalError : Error
