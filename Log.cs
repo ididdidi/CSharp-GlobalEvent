@@ -92,7 +92,7 @@
             /// Class constructor
             /// </summary>
             /// <param name="text">Message text</param>
-            public Error(string text) : base(Type.Warning, text) { }
+            public Error(string text) : base(Type.Error, text) { }
 
             /// <summary>
             /// The method required to send the signal
