@@ -38,26 +38,29 @@ namespace ru.mofrison.GlobalSignals
         /// <summary>
         /// Auxiliary method for removing duplicate delegates.
         /// </summary>
-        /// <param name="hendlers">Reference to a method or delegates</param>
+        /// <param name="hendler">Reference to a method or delegates</param>
         /// <returns>Unique hendlers</returns>
-        protected static Hendler GetUniqueHendlers(Hendler hendlers)
+        protected static Hendler GetUniqueHendlers(Hendler hendler)
         {
             HashSet<int> hashs = new HashSet<int>();
 
-            foreach (Hendler hendler in hendlers.GetInvocationList())
+            Hendler[] hendlers = hendler.GetInvocationList() as Hendler[];
+            if(hendlers != null)
             {
-                var hash = (hendler.Target?.GetHashCode() + "" +
-                            hendler.Method.DeclaringType +
-                            hendler.Method.GetBaseDefinition()).GetHashCode();
-
-                if (hashs.Contains(hash))
+                for (int i = 0; i < hendlers.Length; i++)
                 {
-                    hendlers -= hendler;
+                    var atrs = string.Format("{0}{1}{2}", hendlers[i].Target?.GetHashCode(), hendlers[i].Method.DeclaringType, hendlers[i].Method.GetBaseDefinition());
+                    var hash = atrs.GetHashCode();
+
+                    if (hashs.Contains(hash))
+                    {
+                        hendler -= hendlers[i];
+                    }
+                    else { hashs.Add(hash); }
                 }
-                else { hashs.Add(hash); }
             }
 
-            return hendlers;
+            return hendler;
         }
 
         /// <summary>
