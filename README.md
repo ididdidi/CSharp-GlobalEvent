@@ -23,42 +23,56 @@ public abstract class Signal<T> where T : Signal<T>
 {
     public delegate void Hendler(T signal);
     protected static Hendler hendlers;
+    private static HashSet<int> hashs = new HashSet<int>();
 
-    public static void Subscribe(Hendler hendlers)
+    public static int GetHashCode(Hendler hendler)
     {
-        Signal<T>.hendlers += hendlers;
+        return string.Format("{0}{1}{2}", hendler.Target?.GetHashCode(),
+            hendler.Method.DeclaringType, hendler.Method.GetBaseDefinition()).GetHashCode();
     }
-
-    public static void Unsubscribe(Hendler hendlers)
+	
+    public static void Subscribe(Hendler hendler)
     {
-        Signal<T>.hendlers -= hendlers;
-    }
-
-    protected static Hendler GetUniqueHendlers(Hendler hendlers)
-    {
-        HashSet<int> hashs = new HashSet<int>();
-
-        foreach (var hendler in hendlers.GetInvocationList())
+        for (int i = 0; i < hendler.GetInvocationList().Length; i++)
         {
-            var hash = System.String.GetHashCode(
-                hendler.Target?.GetHashCode() + "" +
-                hendler.Method.DeclaringType + "" +
-                hendler.Method.GetBaseDefinition()
-                );
-
-            if (hashs.Contains(hash))
-            {
-                hendlers -= hendler;
-            }
-            else { hashs.Add(hash); }
+            AddHendler((Hendler)(hendler.GetInvocationList()[i]));
         }
-        
-        return hendlers;
     }
-
+	
+    public static void Unsubscribe(Hendler hendler)
+    {
+        for (int i = 0; i < hendler.GetInvocationList().Length; i++)
+        {
+            RemoveHendler((Hendler)(hendler.GetInvocationList()[i]));
+        }
+    }
+	
+    protected static void AddHendler(Hendler hendler)
+    {
+        var hash = GetHashCode(hendler);
+        if (!hashs.Contains(hash))
+        {
+            hendlers += hendler;
+            hashs.Add(hash);
+        }
+        else throw new Exception(string.Format("The {0} has already been added in {1} hendlers", hendler.Method, typeof(T)));
+    }
+	
+    protected static void RemoveHendler(Hendler hendler)
+    {
+        var hash = GetHashCode(hendler);
+        if (hashs.Contains(hash))
+        {
+            hendlers -= hendler;
+            hashs.Remove(hash);
+        }
+        else throw new Exception(string.Format("The {0} has not been added in {1} hendlers", hendler.Method, typeof(T)));
+    }
+	
     public class Exception : System.Exception
     {
-        public Exception(string message) : base(message) { }
+        public Exception(string message) : base(message)
+        { }
     }
 }
 ```
@@ -112,9 +126,7 @@ Message.Unsubscribe(Receive);
 ```
 
 ### Example of an extended signal
-The above signal example has two significant drawbacks:
-* The receiver can subscribe to it several times, and when sending a signal, the added method will be called as many times as it was added.
-* If no one is subscribed to the signal, the sender will send the signal to the void.
+The above signal example has significant drawback: if no one is subscribed to the signal, the sender will send the signal to the void.
 
 To successfully overcome these problems, you can implement the signal as follows:
 ```csharp
@@ -127,11 +139,6 @@ public class Error : Signal<Error>
     public Error(string text)
     {
         this.text = text;
-    }
-
-    public new static void Subscribe(Hendler hendlers)
-    {
-        Signal<Error>.hendlers = GetUniqueHendlers(Signal<Error>.hendlers + hendlers);
     }
 
     public static void Send(string text)

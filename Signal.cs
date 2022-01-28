@@ -16,51 +16,72 @@ namespace ru.mofrison.GlobalSignals
         /// <param name="signal">Signal instance</param>
         public delegate void Hendler(T signal);
         protected static Hendler hendlers;
+        private static HashSet<int> hashs = new HashSet<int>();
+
+        /// <summary>
+        /// Generates a 32 bit hash code needed to compare handlers
+        /// </summary>
+        /// <param name="hendler">Reference to a method or delegates</param>
+        public static int GetHashCode(Hendler hendler)
+        {
+            return string.Format("{0}{1}{2}", hendler.Target?.GetHashCode(),
+                hendler.Method.DeclaringType, hendler.Method.GetBaseDefinition()).GetHashCode();
+        }
 
         /// <summary>
         /// Adds delegates
         /// </summary>
-        /// <param name="hendlers">Reference to a method or delegates</param>
-        public static void Subscribe(Hendler hendlers)
+        /// <param name="hendler">Reference to a method or delegates</param>
+        public static void Subscribe(Hendler hendler)
         {
-            Signal<T>.hendlers += hendlers;
+            for (int i = 0; i < hendler.GetInvocationList().Length; i++)
+            {
+                AddHendler((Hendler)(hendler.GetInvocationList()[i]));
+            }
         }
 
         /// <summary>
         /// Removes delegates
         /// </summary>
-        /// <param name="hendlers">Reference to a method or delegates</param>
-        public static void Unsubscribe(Hendler hendlers)
+        /// <param name="hendler">Reference to a method or delegates</param>
+        public static void Unsubscribe(Hendler hendler)
         {
-            Signal<T>.hendlers -= hendlers;
+            for (int i = 0; i < hendler.GetInvocationList().Length; i++)
+            {
+                RemoveHendler((Hendler)(hendler.GetInvocationList()[i]));
+            }
         }
 
         /// <summary>
-        /// Auxiliary method for removing duplicate delegates.
+        /// Adds a method if it hasn't already been added
         /// </summary>
-        /// <param name="hendler">Reference to a method or delegates</param>
+        /// <param name="hendler">Reference to a method</param>
         /// <returns>Unique hendlers</returns>
-        protected static Hendler GetUniqueHendlers(Hendler hendler)
+        protected static void AddHendler(Hendler hendler)
         {
-            HashSet<int> hashs = new HashSet<int>();
-
-            Hendler[] hendlers = hendler.GetInvocationList() as Hendler[];
-            if(hendlers != null)
+            var hash = GetHashCode(hendler);
+            if (!hashs.Contains(hash))
             {
-                for (int i = 0; i < hendlers.Length; i++)
-                {
-                    var atrs = string.Format("{0}{1}{2}", hendlers[i].Target?.GetHashCode(), hendlers[i].Method.DeclaringType, hendlers[i].Method.GetBaseDefinition());
-                    var hash = atrs.GetHashCode();
-
-                    if (hashs.Contains(hash))
-                    {
-                        hendler -= hendlers[i];
-                    }
-                    else { hashs.Add(hash); }
-                }
+                hendlers += hendler;
+                hashs.Add(hash);
             }
+            else throw new Exception(string.Format("The {0} has already been added in {1} hendlers", hendler.Method, typeof(T)));
+        }
 
-            return hendler;
+        /// <summary>
+        /// Remove a method if it has been added
+        /// </summary>
+        /// <param name="hendler">Reference to a method</param>
+        /// <returns>Unique hendlers</returns>
+        protected static void RemoveHendler(Hendler hendler)
+        {
+            var hash = GetHashCode(hendler);
+            if (hashs.Contains(hash))
+            {
+                hendlers -= hendler;
+                hashs.Remove(hash);
+            }
+            else throw new Exception(string.Format("The {0} has not been added in {1} hendlers", hendler.Method, typeof(T)));
         }
 
         /// <summary>
