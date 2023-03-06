@@ -1,6 +1,6 @@
-This time I will share with you my implementation of the interaction between different parts of the application, through the transmission and processing of signals. This rather simple method solved for me the problem of transferring data from one object to another when using multiscenes in **Unity3d**.
+**Attention!** This is the result of my experiments with C# delegates, if you plan to use it - do it carefully!
 
-## Background
+## Prolog
 As mentioned above, when creating an application in Unity3d, I came across the fact that it is necessary to transfer data from one object to another.
 Moreover, this was complicated by the use of multitsen. My project involves creating a lot of scenes and I really did not want to manually implement dependencies.
 Methods like `FindObjectsOfType` were also not suitable for me, as they take up too many resources to search for objects. I wanted to simplify data transfer between scene objects as much as possible without compromising performance.
@@ -10,184 +10,158 @@ As I delved deeper into the various architectural patterns, I came across **ECS*
 But as is often the case with frameworks, it provided me with huge opportunities, most of which I did not intend to use inside my project. Basically I used a structure called **Signals**. The author himself described it something like this: _"it sends a message literally into the void, and if there is a recipient for it, it will receive it in any part of the application"_. This more than covered the entire range of my tasks to ensure interaction between objects in scenes. Having realized what I really needed, I began to experiment with the entities known to me at that time in C#.
 
 ## Design
-The Structural diagram shows the simplest scheme of signal transmission from the sender to the receiver:
+The block diagram shows the simplest way to transmit a event from a sender to a receiver:
 
-![Structural diagram](https://mofrison.ru/assets/images/posts/2021-03-17-global-signals-cs/structural-diagram.gif)
+![Structural diagram](https://mofrison.ru/assets/images/posts/2021-03-17-csharp-global-events/structural-diagram.gif)
 
-The receiver subscribes to a specific type of signal. The sender generates a signal, transmits data to it, and sends it to the "ether". The receiver catches this signal and extracts data from it and processes it. The recipient can break the connection by unsubscribing from the signal. Thus, the sender and the receiver may not know anything about each other, and the signal serves as an interface for transmitting data between them.
+The **handler** subscribes to a certain type of **event**. **Generator** creates an event, passes data to it, and sends it to all subscribed handlers. The handler receives this event, extracts data from it, and processes it. The handler can break the connection by unsubscribing from the event. Thus, the generator and the handler may not know anything about each other, and the event serves as an interface for passing data between them.
 
 ## Implementation
-I decided to make the base class universal for all signals, while limiting the type parameter to its inheritors:
-```csharp
-public abstract class Signal<T> where T : Signal<T>
-{
-    public delegate void Hendler(T signal);
-    protected static Hendler hendlers;
-    private static HashSet<int> hashs = new HashSet<int>();
+I have created a base class for all events that accepts derived classes as a type. Inside it, a static variable is encapsulated in the form of a delegate that stores methods that accept an object derived from the `GlobalEvent<T>` type as a prameter. This variable is used to implement the event subscription mechanism. It defines the following methods:
+Method name                     | Implemented function
+--------------------------------|-------------------------
+[Contains](#contains)			| Checks if this handler is subscribed to this event.
+[Subscribe](#subscribe)			| The method for adding handlers.
+[Unsubscribe](#unsubscribe)		| The method for removes handler.
+[Handle](#handle)				| Protected method for handling global event.
+[AddHendler](#addhendler)		| Private method to add handlers if not already added.
+[RemoveHendler](#removehendler)	| Private method for remove a method if it has been added.
 
-    public static int GetHashCode(Hendler hendler)
-    {
-        return string.Format("{0}{1}{2}", hendler.Target?.GetHashCode(),
-            hendler.Method.DeclaringType, hendler.Method.GetBaseDefinition()).GetHashCode();
-    }
-	
-    public static void Subscribe(Hendler hendler)
-    {
-        for (int i = 0; i < hendler.GetInvocationList().Length; i++)
-        {
-            AddHendler((Hendler)(hendler.GetInvocationList()[i]));
-        }
-    }
-	
-    public static void Unsubscribe(Hendler hendler)
-    {
-        for (int i = 0; i < hendler.GetInvocationList().Length; i++)
-        {
-            RemoveHendler((Hendler)(hendler.GetInvocationList()[i]));
-        }
-    }
-	
-    protected static void AddHendler(Hendler hendler)
-    {
-        var hash = GetHashCode(hendler);
-        if (!hashs.Contains(hash))
-        {
-            hendlers += hendler;
-            hashs.Add(hash);
-        }
-        else throw new Exception(string.Format("The {0} has already been added in {1} hendlers", hendler.Method, typeof(T)));
-    }
-	
-    protected static void RemoveHendler(Hendler hendler)
-    {
-        var hash = GetHashCode(hendler);
-        if (hashs.Contains(hash))
-        {
-            hendlers -= hendler;
-            hashs.Remove(hash);
-        }
-        else throw new Exception(string.Format("The {0} has not been added in {1} hendlers", hendler.Method, typeof(T)));
-    }
-	
-    public class Exception : System.Exception
-    {
-        public Exception(string message) : base(message)
-        { }
-    }
-}
-```
-Inside it, a static variable is encapsulated in the form of a delegate that stores methods that accept an object derived from the `Signal<T>` type as a prameter. This variable is used to implement the signal subscription mechanism.
-> **Attention!** _With great power comes great responsibility:_ since method references are stored in a static variable, make sure that the objects are unsubscribed from the signal in a timely manner, otherwise the garbage collector will not be able to delete them and there will be a memory leak.
+> **Attention!** *With great power comes great responsibility:* since method references are stored in a static variable, make sure that the objects are unsubscribed from the event in a timely manner, otherwise the garbage collector will not be able to delete them and there will be a memory leak.
 
 Even though the variable is declared in the base class, a delegate is created for each derived class. Thanks to this, the recipient receives only messages of the type to which he subscribed. The `Subscribe(Hendler hendlers)` method is used to add subscriber delegates, and `Unsubscribe(Hendler hendlers)` - to delete them.
 
-### Example of a simple signal
-To implement a simple signal, it is enough to inherit from the `Signal<T>` type, passing the type of the derived class to it, and to add a method for sending this signal to the recipients:
+In addition, when subscribing to an event, the handler is compared with previously subscribed ones. If this delegate has been previously signed an exception is thrown.
+
+### Contains
+Checks if this handler is subscribed to this event. It takes an event handler as a parameter. Returns `true` if the handler was already subscribed to this event.
 ```csharp
-public class Message : Signal<Message>
+private static bool Contains(Hendler hendler)
 {
-    private string text;
-    public string Text { get => text; }
+    return hashs.Contains(hendler.GetHashCode());
+}
+```
 
-    private Message(string text)
+### Subscribe
+The method for adding handlers. Takes as one parameter a reference to a method or a delegate with one parameter derived from GlobalEvent<T>.
+```csharp	
+public static void Subscribe(Hendler hendler)
+{
+    for (int i = 0; i < hendler.GetInvocationList().Length; i++)
     {
-        this.text = text;
-    }
-
-    public static void Send(string text)
-    {
-        // Calls delegates that accept this type as a parameter
-        hendlers?.Invoke(new Message(text));
+        AddHendler((Hendler)(hendler.GetInvocationList()[i]));
     }
 }
 ```
-In this implementation, the `Message` signal encapsulates a string of text that it will receive when it is created and then send to the recipients.
-To send a message, use the static `Send(string text)` method. All it needs to do is create an instance of the `Message` class and call the delegates subscribed to it, passing this object as a parameter.
 
-### Sending and receiving a signal
-To send the above signal, a simple line is enough:
+### Unsubscribe
+The method for removes handler. Takes as one parameter a reference to a method or a delegate with one parameter derived from GlobalEvent<T>.
 ```csharp
-Message.Send("Hello World!");
+public static void Unsubscribe(Hendler hendler)
+{
+    for (int i = 0; i < hendler.GetInvocationList().Length; i++)
+    {
+        RemoveHendler((Hendler)(hendler.GetInvocationList()[i]));
+    }
+}
 ```
-But before you receive this signal, it is advisable to subscribe to it:
+
+### Handle
+Protected method for handling global event. Takes as one parameter a reference to event.
 ```csharp
-Message.Subscribe(Receive);
+        protected static void Handle(T globalEvent)
+        {
+            try
+            {
+                hendlers.Invoke(globalEvent);
+            }
+            catch (System.NullReferenceException e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
 ```
-As a parameter, specify the name of the method that handles this signal:
+
+### AddHendler
+Private method for adding handlers if it hasn't already been added. Takes as one parameter a reference to a method or a delegate with one parameter derived from GlobalEvent<T>.
+```csharp
+private static void AddHendler(Hendler hendler)
+{
+    var hash = hendler.GetHashCode();
+    if (!hashs.Contains(hash))
+    {
+        hendlers += hendler;
+        hashs.Add(hash);
+    }
+    else throw new Exception($"The {hendler.Method} has already been added in {typeof(T)} hendlers");
+}
+```
+
+### RemoveHendler
+Private method for Remove a method if it has been added. Takes as one parameter a reference to a method or a delegate with one parameter derived from GlobalEvent<T>.
+```csharp
+private static void RemoveHendler(Hendler hendler)
+{
+    var hash = hendler.GetHashCode();
+    if (hashs.Contains(hash))
+    {
+        hendlers -= hendler;
+        hashs.Remove(hash);
+    }
+    else throw new Exception($"The {hendler.Method} has not been added in {typeof(T)} hendlers");
+}
+```
+
+### Simple event example
+To implement an event, it is enough to inherit from the `GlobalEvent<T>` type, passing the type of the derived class into it, and add a method to fire this event:
+```csharp
+public class Message : GlobalEvent<Message>
+{
+    public string Text { get; }
+
+    private Message(string text) => Text = text;
+
+	public static void Send(string text) => Handle(new Message(text));
+}
+```
+In this implementation, the `Message` event encapsulates a string of text that it will receive when it is created and then send to the recipients.
+To send a message, use the static `Send(string text)` method. All that is required of him is to create an instance of the `Message` class and call the `Handle(Message message)` method, passing this object as a parameter.
+
+### Sending and handling an event
+In order to handle the above event, you need to implement a method that takes this event as a parameter:
 ```csharp
 private void Receive(Message message)
 {
     System.Console.WriteLine(message.Text);
 }
 ```
-Do not forget to unsubscribe as soon as the receipt of this signal is no longer relevant for us:
+Let's subscribe this method to the event:
+```csharp
+Message.Subscribe(Receive);
+```
+After that, to send the above message, a simple line is enough:
+```csharp
+Message.Send("Hello World!");
+```
+Don't forget to unsubscribe as soon as the receipt of this event is no longer relevant for us:
 ```csharp
 Message.Unsubscribe(Receive);
 ```
 
-### Example of an extended signal
-The above signal example has significant drawback: if no one is subscribed to the signal, the sender will send the signal to the void.
+## Conclusion
+You can also use global events in your project by adding [this repository](https://github.com/mofrison/CSharp-GlobalEvent) as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules):
 
-To successfully overcome these problems, you can implement the signal as follows:
-```csharp
-public class Error : Signal<Error>
-{
-    private string text;
-    
-    public string Text { get => text; }
+	git submodule add https://github.com/mofrison/CSharp-GlobalEvent
 
-    public Error(string text)
-    {
-        this.text = text;
-    }
+The main advantage of this approach is that I can create an event in one part of the program and process it in another, without direct interaction between the handler and the event emitter.
 
-    public static void Send(string text)
-    {
-        try
-        {
-            hendlers.Invoke(new Error(text));
-        }
-        catch (System.NullReferenceException e)
-        {
-            throw new Exception(e.Message);
-        }
-    }
-}
-```
-In this example, when subscribing to a signal, the `GetUniqueHendlers(Hendler hendlers)` method is used to exclude all duplicates from the delegates. As a parameter, we pass the delegates that are already subscribed to the signal along with the new delegates, and at the output we get a set of unique delegates. We store this new delegate in our static variable instead of the old one.
+But there are also many disadvantages:
+* The use of static variables with all the "leaking" consequences
+* Global, public access to all events does not contribute to security
+* The need to control the lifetime of handlers
 
-Another innovation is that we do not check the delegate for 'null' before making a call. Instead, we catch the `NullReferenceException` error and throw `Signal<T>.Exception` if it occurs of the class, which we can later process according to the application logic.
-
-### Signal and inheritance
-If you inherit from a class derived from `Signal<T>` (for example, from `Error`), then the received signal type can no longer be subscribed, but in this new class you can perform some template pre-processing of the data sent in it, for example, add a prefix:
-```csharp
-class FatalError : Error
-{
-    private FatalError(string text) : base("Fatal error: " + text) { }
-    public new static void Send(string text)
-    {
-        try
-        {
-            hendlers.Invoke(new FatalError(text));
-        }
-        catch (System.NullReferenceException e)
-        {
-            throw new Exception(e.Message);
-        }
-    }
-}
-```
-When sending this signal, all `Error` subscribers will receive messages already with the _Fatal error_ prefix.
-
-## Instead of a conclusion
-I understand that this method may seem unsafe to many people because of a possible memory leak, but even with a kitchen knife, which most of us use to cut bread for sandwiches, you can cut yourself)
-
-To protect yourself when using signals, I recommend that you subscribe to them only objects that are active before the program exits, or whose lifetime can be accurately determined, and at the end of it unsubscribe from the signal. In the case of objects in **Unity3d**, you can(and should) unsubscribe from the signal in the `onDestroy()` method called when the object is removed from the scene. In the case of standard C#, you should not try to unsubscribe in the destructor or in the `Finalize()` method since it is called by the mustor collector only after removing all references to the object, and as you understand, the reference to the object's method will be stored in a static variable until the program ends.
-
-I have created a separate repository with [examples](https://github.com/mofrison/examples-global-signals) so that you can test them.
-You can also use global signals in your project by adding [this repository](https://github.com/mofrison/GlobalSignals) as a [submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules):
-
-	git submodule add https://github.com/mofrison/GlobalSignals
+Therefore, it is important that the handler subscribes to the event before its creation and is unsubscribed as soon as it is no longer needed or it becomes disable, and the data passed to the event when it is created is immutable.
 
 In any case, it is up to you to use this method or not. Thanks for your attention :)
+
 

@@ -1,104 +1,65 @@
-﻿namespace ru.mofrison.GlobalSignals
+﻿namespace ru.mofrison.GlobalEvent
 {
     public class Log
     {
         /// <summary>
-        /// Types of messages sent to log
-        /// </summary>
-        public enum Type { Entry, Warning, Error }
-
-        /// <summary>
         /// Base class for log messages
         /// </summary>
-        public class Entry : Signal<Entry>
+        public class Message : GlobalEvent<Message>
         {
-            private Type type;
-            private string text;
-            public Type Type { get => type; }
-            public string Text { get => text; }
+            public string Text { get; }
 
             /// <summary>
             /// Base class constructor
             /// </summary>
-            /// <param name="type">Message type</param>
             /// <param name="text">Message text</param>
-            protected Entry(Type type, string text)
-            {
-                this.type = type;
-                this.text = text;
-            }
+            protected Message(string text) => Text = text;
 
             /// <summary>
-            /// The method required to send the signal
+            /// The method required to send the global event
             /// </summary>
             /// <param name="text">Message text</param>
-            public static void Send(string text)
-            {
-                try
-                {
-                    hendlers.Invoke(new Entry(Type.Entry, text));
-                }
-                catch (System.NullReferenceException e)
-                {
-                    throw new Exception(e.Message);
-                }
-            }
+            public static void Send(string text) => Handle(new Message(text));
         }
 
         /// <summary>
-        /// A more complex example of signal implementation. Adds only unique methods as delegates.
+        /// A more complex example of global event implementation. Adds only unique methods as delegates.
         /// </summary>
-        public sealed class Warning : Entry
+        public sealed class Warning : GlobalEvent<Warning>
         {
+            public string Text { get; }
+
             /// <summary>
             /// Class constructor
             /// </summary>
             /// <param name="text">Message text</param>
-            public Warning(string text) : base(Type.Warning, text) { }
-            
+            private Warning(string text) => Text = text;
+
             /// <summary>
-            /// The method required to send the signal
+            /// The method required to send the global event
             /// </summary>
-            /// <param name="text">Message text</param>
-            public new static void Send(string text)
-            {
-                try
-                {
-                    hendlers.Invoke(new Warning(text));
-                }
-                catch (System.NullReferenceException e)
-                {
-                    throw new Exception(e.Message);
-                }
-            }
+            /// <param name="text">Warning message text</param>
+            public static void Send(string text) => Handle(new Warning(text));
         }
 
         /// <summary>
-        /// A more complex example of signal implementation. Adds only unique methods as delegates.
+        /// A more complex example of global event implementation. Adds only unique methods as delegates.
         /// </summary>
-        public class Error : Entry
+        public sealed class Error : GlobalEvent<Error>
         {
+            public string Text { get; }
+
             /// <summary>
             /// Class constructor
             /// </summary>
             /// <param name="text">Message text</param>
-            public Error(string text) : base(Type.Error, text) { }
+            private Error(string text) => Text = text;
 
             /// <summary>
-            /// The method required to send the signal
+            /// The method required to send the global event
             /// </summary>
-            /// <param name="text">Message text</param>
-            public new static void Send(string text)
-            {
-                try
-                {
-                    hendlers.Invoke(new Error(text));
-                }
-                catch (System.NullReferenceException e)
-                {
-                    throw new Exception(e.Message);
-                }
-            }
+            /// <param name="text">Error message text</param>
+            public static void Send(string text) => Handle(new Error(text));
         }
     }
 
